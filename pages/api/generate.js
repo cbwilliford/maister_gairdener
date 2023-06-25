@@ -5,11 +5,17 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
-const generatePrompt = (input) => {
-  return `You are a friendly master gardener.
-    You consult with farmers and gardeners to help them grow flowers and vegetables.
-    I am an experienced gardener.
-    What advice do you give me when I ask "${input}"`;
+const generatePrompt = ({latitude, longitude, timestamp}) => {
+  return `You are a master gardener who specializes in growing vegetables.
+    It's currently ${timestamp} UTC and I am at latitude: ${latitude} and longitude: ${longitude}.
+    Create a detailed garden plan for my zone's upcoming season. Use this JSON format:
+    {
+      "zone": "string: USDA Zone",
+      "season": "string: my upcoming growing season",
+      "conditions": "string: conditions in my USDA zone during my upcoming season",
+      "plants": [an array of plants that thrive during this upcoming season in my USDA zone],
+      "plan": [an array of steps to take to successfully grow these plants]
+    }`;
 }
 
 
@@ -17,25 +23,15 @@ export default async function (req, res) {
 
   // improve error handling: https://platform.openai.com/docs/guides/error-codes
 
-  const input = req.body.input || '';
-  if (input.trim().length === 0) {
-    res.status(400).json({
-      error: {
-        message: "Are you sure you asked a question?",
-      }
-    });
-    return;
-  }
-
+  const locationData = req.body.locationData || '';
 
   try {
     const completion = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: generatePrompt(input),
+      prompt: generatePrompt(locationData),
       temperature: 0,
-      max_tokens: 256,
+      max_tokens: 500,
     });
-    console.log("completion: ", completion)
     res.status(200).json({ result: completion.data.choices[0].text });
   } catch(error) {
     if (error.response) {

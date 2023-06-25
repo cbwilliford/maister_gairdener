@@ -3,18 +3,19 @@ import { useState } from "react";
 import styles from "./index.module.css";
 
 export default function Home() {
-  const [userInput, setUserInput] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [result, setResult] = useState();
 
-  async function onSubmit(event) {
-    event.preventDefault();
+
+
+  const generateResponse = async (locationData) => {
     try {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ input: userInput }),
+        body: JSON.stringify({ locationData }),
       });
 
       const data = await response.json();
@@ -27,6 +28,61 @@ export default function Home() {
       console.error(error);
       alert(error.message);
     }
+  }
+
+  const getLocation = async () => {
+    document.querySelector(`.${styles.result}`).textContent = "One moment while we generate your garden plan..."
+    if ('geolocation' in navigator) {
+      await navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const {longitude, latitude} = position.coords;
+          const {timestamp} = position;
+          generateResponse({ longitude, latitude, timestamp})
+        },
+        (error) => {
+          console.alert('We had trouble getting your location. Please try again.', error.message);
+        }
+      );
+    } else {
+      console.alert('Geolocation is not supported by this browser. Try Google Chrome.');
+    }
+  }
+
+
+
+  const onSubmit = async (event) => {
+    event.preventDefault();
+    getLocation();
+    // in real app, validate and handle email submission here
+  }
+
+
+  const displayPlan = (result) => {
+    const plan = JSON.parse(result);
+    return (
+      <div className={styles.result}>
+        <h3>Your Garden Plan</h3>
+        <div>
+          <h4>Zone: {plan.zone}</h4>
+          <h4>Season: {plan.season}</h4>
+          <h4>Conditions: {plan.conditions}</h4>
+          <h4>Plants:</h4>
+          <ul>
+            {plan.plants.map((plant, index) => (
+              <li key={index}>{plant}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h4>Plan:</h4>
+          <ol>
+            {plan.plan.map((step, index) => (
+              <li key={index}>{step}</li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    );
   }
 
 
@@ -55,13 +111,15 @@ export default function Home() {
           <input
             type="text"
             name="question"
-            placeholder="Enter your email"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
+            placeholder="Enter your (fake) email"
+            value={userEmail}
+            onChange={(e) => setUserEmail(e.target.value)}
           />
           <input type="submit" value="Get Your Free Garden Plan!" />
         </form>
-        <div className={styles.result}>{result}</div>
+        <div className={styles.result}>
+          {result && result !== '' ? displayPlan(result.trim()) : ''}
+        </div>
       </main>
     </div>
   );
